@@ -1,0 +1,67 @@
+name: Fork Release (tag-triggered)
+
+# Builds and publishes a GitHub Release when a fork tag like v0.8.8-v14 is
+# pushed. Mirrors main.yml's build, but omits the FoundryVTT-website publish
+# step (which needs a PACKAGE_TOKEN secret this fork doesn't set). The release
+# is created with GITHUB_TOKEN, which does not re-trigger main.yml.
+on:
+  push:
+    tags:
+      - 'v*-v14'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build System
+        run: pnpm build
+
+      - name: Extract tag version number
+        id: get_version
+        uses: battila7/get-version-action@v2
+
+      - name: Substitute Manifest and Download Links
+        uses: microsoft/variable-substitution@v1
+        with:
+          files: './dist/system.json'
+        env:
+          version: ${{ steps.get_version.outputs.version-without-v }}
+          url: https://github.com/${{ github.repository }}
+          manifest: https://github.com/${{ github.repository }}/releases/latest/download/system.json
+          download: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/nimble.zip
+
+      - name: Zip Files
+        working-directory: ./dist
+        run: zip -r ./nimble.zip ./*
+
+      - name: Create/Update Release with Files
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          name: ${{ github.ref_name }} (Foundry v14 compatibility)
+          draft: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: './dist/system.json, ./dist/nimble.zip'
+          tag: ${{ github.ref_name }}
+          body: |
+            Fork build adding Foundry VTT v14 compatibility.
+
+            - Raise manifest verified compatibility to 14 (build 14.364) and remove the maximum:13 install gate
+            - Replace deprecated global FilePicker with foundry.applications.apps.FilePicker.implementation
+            - Bump fvtt-types to latest available build
