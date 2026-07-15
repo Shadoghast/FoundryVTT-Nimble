@@ -1,0 +1,42 @@
+name: Regenerate pnpm lockfile
+
+# Regenerates pnpm-lock.yaml so it matches package.json (e.g. after the
+# fvtt-types bump). Runs automatically on pushes to v14-compat, and can be
+# triggered manually once this workflow exists on the default branch.
+on:
+  workflow_dispatch:
+  push:
+    branches: [v14-compat]
+
+permissions:
+  contents: write
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Update lockfile to match package.json
+        run: pnpm install --lockfile-only
+
+      - name: Commit updated lockfile if changed
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "Lockfile already in sync — nothing to commit."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add pnpm-lock.yaml
+            git commit -m "chore: regenerate pnpm-lock.yaml for fvtt-types bump [skip ci]"
+            git push
+          fi
