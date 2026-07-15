@@ -2,7 +2,7 @@
 	"id": "nimble",
 	"title": "Nimble",
 	"description": "An official implementation of Nimble 2 for Foundry Virtual Tabletop.",
-	"version": "0.8.8",
+	"version": "0.8.8-v14",
 	"authors": [
 		{
 			"name": "Trevor Carlston",
